@@ -1,512 +1,71 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منظومة التحقق من عناوين الماجستير والدكتوراه</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: 'Cairo', sans-serif;
-            margin: 0;
-            padding: 0;
-        }
+<script>
+    let titlesDatabase = [];
 
-        body {
-            background-color: #f4f6f8;
-            color: #1e293b;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
+    // رابط CSV من جوجل ملفوف بـ CORS Proxy لجلب سريع ومباشر
+    const rawCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQV2gEur4V5-I89W4AbQVfSwUoQ6TF_hA7JItNN28cTz_V99_Koxf4mMUvT20p/pub?output=csv';
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawCsvUrl);
 
-        /* الهيدر العلوي */
-        .header {
-            background-color: #0b5563;
-            color: #ffffff;
-            text-align: center;
-            padding: 25px 15px;
-            border-bottom: 5px solid #d97706;
-        }
-
-        .header h1 {
-            font-size: 1.3rem;
-            font-weight: 800;
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-
-        .header p {
-            font-size: 0.85rem;
-            opacity: 0.9;
-        }
-
-        /* الحاوية الرئيسية */
-        .container {
-            max-width: 500px;
-            width: 90%;
-            margin: 20px auto;
-            flex: 1;
-        }
-
-        /* كارت حالة النظام ودخول المشرف */
-        .status-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .status-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: #1e293b;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            background-color: #10b981;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .admin-btn {
-            background-color: #1e2538;
-            color: #ffffff;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            text-decoration: none;
-        }
-
-        /* كارت البحث الرئيسي */
-        .search-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .label {
-            font-weight: 800;
-            font-size: 1rem;
-            color: #0f172a;
-            margin-bottom: 12px;
-            display: block;
-        }
-
-        .input-box {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #0b5563;
-            border-radius: 12px;
-            font-size: 1rem;
-            outline: none;
-            text-align: right;
-            margin-bottom: 20px;
-            transition: all 0.2s;
-        }
-
-        /* مربع النتيجة */
-        .result-box {
-            border: 2px dashed #cbd5e1;
-            border-radius: 14px;
-            padding: 20px;
-            text-align: center;
-            background-color: #fafafa;
-        }
-
-        .result-title {
-            font-weight: 800;
-            font-size: 0.95rem;
-            color: #334155;
-            margin-bottom: 12px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-        }
-
-        .badge-waiting {
-            background-color: #f1f5f9;
-            color: #64748b;
-        }
-
-        .badge-available {
-            background-color: #d1fae5;
-            color: #047857;
-        }
-
-        .badge-exists {
-            background-color: #fee2e2;
-            color: #b91c1c;
-        }
-
-        /* التذييل */
-        .footer {
-            text-align: center;
-            padding: 20px 15px;
-            font-size: 0.8rem;
-            color: #64748b;
-            line-height: 1.6;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- الهيدر العلوي -->
-    <div class="header">
-        <h1>منظومة التحقق من عناوين الماجستير والدكتوراه - الجامعة العراقية - كلية التربية للبنات</h1>
-        <p>النظام الإلكتروني الموحد للتدقيق الفوري للأطاريح والرسائل العلمية</p>
-    </div>
-
-    <!-- المحتوى الرئيسي -->
-    <div class="container">
-        <!-- كارت الحالة ودخول المشرف -->
-        <div class="status-card">
-            <a href="#" class="admin-btn">🔒 دخول المشرف</a>
-            <div class="status-info">
-                النظام مباشر وجاهز للتدقيق
-                <span class="status-dot"></span>
-            </div>
-        </div>
-
-        <!-- كارت الفحص -->
-        <div class="search-card">
-            <label class="label">أدخل العنوان المقترح هنا:</label>
-            <input type="text" id="titleInput" class="input-box" placeholder="أدخل العنوان أو كلمات مفتاحية..." oninput="checkTitle()">
-
-            <div class="result-box">
-                <div class="result-title">نتيجة فحص وتدقيق العنوان:</div>
-                <div id="resultBadge" class="badge badge-waiting">
-                    بانتظار إدخال العنوان للتدقيق...
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- التذييل -->
-    <div class="footer">
-        جميع الحقوق محفوظة © 2026 - إعداد وبرمجة النظام: م.د. محمد خليل حسن
-    </div>
-
-    <script>
-        let titlesDatabase = [];
-
-        // رابط CSV الخاص بجداول بيانات جوجل
-        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQV2gEur4V5-I89W4AbQVfSwUoQ6TF_hA7JItNN28cTz_V99_Koxf4mMUvT20p/pub?output=csv';
-
-        // جلب البيانات تلقائياً عند فتح الصفحة
-        fetch(csvUrl)
-            .then(response => response.text())
-            .then(data => {
-                // حفظ العناوين في مصفوفة بعد تنظيف السطور
-                titlesDatabase = data.split('\n').map(row => row.trim().toLowerCase()).filter(row => row !== "");
-            })
-            .catch(err => console.error("خطأ في جلب قاعدة البيانات:", err));
-
-        // دالة الفحص الفوري
-        function checkTitle() {
-            const input = document.getElementById('titleInput').value.trim().toLowerCase();
-            const badge = document.getElementById('resultBadge');
-
-            if (input === "") {
-                badge.className = "badge badge-waiting";
-                badge.innerHTML = "بانتظار إدخال العنوان للتدقيق...";
-                return;
+    // جلب البيانات الفوري
+    fetch(proxyUrl)
+        .then(response => {
+            if (!response.ok) throw new Error('شبكة غير مستجيبة');
+            return response.text();
+        })
+        .then(data => {
+            const rows = data.split('\n');
+            let htmlContent = '<ul style="list-style:none; padding:0; margin:0;">';
+            
+            titlesDatabase = [];
+            
+            rows.forEach(row => {
+                const cleanRow = row.trim();
+                if (cleanRow !== "") {
+                    titlesDatabase.push(cleanRow.toLowerCase());
+                    htmlContent += <li style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;">${cleanRow}</li>;
+                }
+            });
+            
+            htmlContent += '</ul>';
+            
+            // تحديث الواجهة بالعناوين فوراً
+            const container = document.getElementById('titles-container');
+            if (container) {
+                container.innerHTML = htmlContent;
             }
-
-            // البحث عن تطابق داخل قاعدة العناوين
-            const isMatch = titlesDatabase.some(title => title.includes(input));
-
-            if (isMatch) {
-                badge.className = "badge badge-exists";
-                badge.innerHTML = "🔴 العنوان مدروس سابقاً (غير متاح)";
-            } else {
-                badge.className = "badge badge-available";
-                badge.innerHTML = "🟢 العنوان غير مدروس (متاح)";
+        })
+        .catch(err => {
+            console.error("خطأ في جلب قاعدة البيانات:", err);
+            const container = document.getElementById('titles-container');
+            if (container) {
+                container.innerHTML = '<p style="text-align:center; color:#dc2626; font-size:0.9rem;">تعذر جلب العناوين تلقائياً، يرجى إعادة تحديث الصفحة.</p>';
             }
-        }
-    </script>
+        });
 
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منظومة التحقق من عناوين الماجستير والدكتوراه</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: 'Cairo', sans-serif;
-            margin: 0;
-            padding: 0;
+    // دالة الفحص السريع عند الكتابة
+    function checkTitle() {
+        const input = document.getElementById('titleInput').value.trim().toLowerCase();
+        const badge = document.getElementById('resultBadge');
+
+        if (!badge) return;
+
+        if (input === "") {
+            badge.className = "badge badge-waiting";
+            badge.style.backgroundColor = "#f1f5f9";
+            badge.style.color = "#64748b";
+            badge.innerHTML = "بانتظار إدخال العنوان للتدقيق...";
+            return;
         }
 
-        body {
-            background-color: #f4f6f8;
-            color: #1e293b;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+        const isMatch = titlesDatabase.some(title => title.includes(input));
+
+        if (isMatch) {
+            badge.style.backgroundColor = "#fee2e2";
+            badge.style.color = "#b91c1c";
+            badge.innerHTML = "🔴 العنوان مدروس سابقاً (غير متاح)";
+        } else {
+            badge.style.backgroundColor = "#d1fae5";
+            badge.style.color = "#047857";
+            badge.innerHTML = "🟢 العنوان غير مدروس (متاح)";
         }
-
-        /* الهيدر العلوي */
-        .header {
-            background-color: #0b5563;
-            color: #ffffff;
-            text-align: center;
-            padding: 25px 15px;
-            border-bottom: 5px solid #d97706;
-        }
-
-        .header h1 {
-            font-size: 1.3rem;
-            font-weight: 800;
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-
-        .header p {
-            font-size: 0.85rem;
-            opacity: 0.9;
-        }
-
-        /* الحاوية الرئيسية */
-        .container {
-            max-width: 500px;
-            width: 90%;
-            margin: 20px auto;
-            flex: 1;
-        }
-
-        /* كارت حالة النظام ودخول المشرف */
-        .status-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .status-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: #1e293b;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            background-color: #10b981;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .admin-btn {
-            background-color: #1e2538;
-            color: #ffffff;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            text-decoration: none;
-        }
-
-        /* كارت البحث الرئيسي */
-        .search-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .label {
-            font-weight: 800;
-            font-size: 1rem;
-            color: #0f172a;
-            margin-bottom: 12px;
-            display: block;
-        }
-
-        .input-box {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #0b5563;
-            border-radius: 12px;
-            font-size: 1rem;
-            outline: none;
-            text-align: right;
-            margin-bottom: 20px;
-            transition: all 0.2s;
-        }
-
-        /* مربع النتيجة */
-        .result-box {
-            border: 2px dashed #cbd5e1;
-            border-radius: 14px;
-            padding: 20px;
-            text-align: center;
-            background-color: #fafafa;
-        }
-
-        .result-title {
-            font-weight: 800;
-            font-size: 0.95rem;
-            color: #334155;
-            margin-bottom: 12px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-        }
-
-        .badge-waiting {
-            background-color: #f1f5f9;
-            color: #64748b;
-        }
-
-        .badge-available {
-            background-color: #d1fae5;
-            color: #047857;
-        }
-
-        .badge-exists {
-            background-color: #fee2e2;
-            color: #b91c1c;
-        }
-
-        /* التذييل */
-        .footer {
-            text-align: center;
-            padding: 20px 15px;
-            font-size: 0.8rem;
-            color: #64748b;
-            line-height: 1.6;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- الهيدر العلوي -->
-    <div class="header">
-        <h1>منظومة التحقق من عناوين الماجستير والدكتوراه - الجامعة العراقية - كلية التربية للبنات</h1>
-        <p>النظام الإلكتروني الموحد للتدقيق الفوري للأطاريح والرسائل العلمية</p>
-    </div>
-
-    <!-- المحتوى الرئيسي -->
-    <div class="container">
-        <!-- كارت الحالة ودخول المشرف -->
-        <div class="status-card">
-            <a href="#" class="admin-btn">🔒 دخول المشرف</a>
-            <div class="status-info">
-                النظام مباشر وجاهز للتدقيق
-                <span class="status-dot"></span>
-            </div>
-        </div>
-
-        <!-- كارت الفحص -->
-        <div class="search-card">
-            <label class="label">أدخل العنوان المقترح هنا:</label>
-            <input type="text" id="titleInput" class="input-box" placeholder="أدخل العنوان أو كلمات مفتاحية..." oninput="checkTitle()">
-
-            <div class="result-box">
-                <div class="result-title">نتيجة فحص وتدقيق العنوان:</div>
-                <div id="resultBadge" class="badge badge-waiting">
-                    بانتظار إدخال العنوان للتدقيق...
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- التذييل -->
-    <div class="footer">
-        جميع الحقوق محفوظة © 2026 - إعداد وبرمجة النظام: م.د. محمد خليل حسن
-    </div>
-
-    <script>
-        let titlesDatabase = [];
-
-        // رابط CSV الخاص بجداول بيانات جوجل
-        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQV2gEur4V5-I89W4AbQVfSwUoQ6TF_hA7JItNN28cTz_V99_Koxf4mMUvT20p/pub?output=csv';
-
-        // جلب البيانات تلقائياً عند فتح الصفحة
-        fetch(csvUrl)
-            .then(response => response.text())
-            .then(data => {
-                // حفظ العناوين في مصفوفة بعد تنظيف السطور
-                titlesDatabase = data.split('\n').map(row => row.trim().toLowerCase()).filter(row => row !== "");
-            })
-            .catch(err => console.error("خطأ في جلب قاعدة البيانات:", err));
-
-        // دالة الفحص الفوري
-        function checkTitle() {
-            const input = document.getElementById('titleInput').value.trim().toLowerCase();
-            const badge = document.getElementById('resultBadge');
-
-            if (input === "") {
-                badge.className = "badge badge-waiting";
-                badge.innerHTML = "بانتظار إدخال العنوان للتدقيق...";
-                return;
-            }
-
-            // البحث عن تطابق داخل قاعدة العناوين
-            const isMatch = titlesDatabase.some(title => title.includes(input));
-
-            if (isMatch) {
-                badge.className = "badge badge-exists";
-                badge.innerHTML = "🔴 العنوان مدروس سابقاً (غير متاح)";
-            } else {
-                badge.className = "badge badge-available";
-                badge.innerHTML = "🟢 العنوان غير مدروس (متاح)";
-            }
-        }
-    </script>
-
-</body>
-</html>
+    }
+</script>
